@@ -8,3 +8,4 @@ e.g：
 
   < favorite launcher:packageName="com.tencent.qqlive" launcher:className="com.tencent.qqlive.ona.activity.WelcomeActivity" launcher:screen="1" launcher:x="1" launcher:y="4"  />
 
+  生成xml后，使用adb pull sdcard/default_workspace.xml 将xml文件取出。
