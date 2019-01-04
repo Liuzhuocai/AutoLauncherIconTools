@@ -30,7 +30,7 @@ import java.util.TreeSet;
 
 public class MainActivity extends AppCompatActivity {
 
-    public static final String AUTHORITY = "com.android.launcher3.settings".intern();
+    public static final String AUTHORITY = "com.elves.launcher.settings".intern();
     public static final String TABLE_NAME = "favorites";
     private final Uri URI = Uri.parse("content://" +
             AUTHORITY + "/" + TABLE_NAME);
@@ -60,6 +60,14 @@ public class MainActivity extends AppCompatActivity {
     public static final int REQUEST_PERMISSION_ALL = 0;
 
     TreeSet<IconBean> mIconBean = new TreeSet<IconBean>(new Comparator<IconBean>() {
+        @Override
+        public int compare(IconBean o1, IconBean o2) {
+            int i = 100;
+            int j = 10;
+            return o1.screen*i+o1.cellY*j+o1.cellX-(o2.screen*i+o2.cellY*j+o2.cellX);
+        }
+    });
+    TreeSet<IconBean> mHotseatIconBean = new TreeSet<IconBean>(new Comparator<IconBean>() {
         @Override
         public int compare(IconBean o1, IconBean o2) {
             int i = 100;
@@ -128,6 +136,9 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Cursor cursor = null;
                 mIconBean.clear();
+                mHotseatIconBean.clear();
+                mFolderBean.clear();
+                mFolderIconBean.clear();
                 //testSetBadge(1);
                 try {
                     cursor = getContentResolver().query(URI, null, null, null, null);
@@ -146,6 +157,23 @@ public class MainActivity extends AppCompatActivity {
                             String cursorString = cursor.getString(cursor.getColumnIndex(INTENT));
 
                             if(anInt==-101||appWidgetId > 0){
+                                if(anInt==-101){
+                                    IconBean iconBean = new IconBean();
+                                    if(cursorString!=null){
+                                        Intent intent = Intent.parseUri(cursorString, 0);
+                                        ComponentName component = intent.getComponent();
+                                        iconBean.className = component.getClassName();
+                                        iconBean.packageName = component.getPackageName();
+                                    }
+                                    iconBean.cellX = cursor.getInt(cursor.getColumnIndex(CELLX));
+                                    iconBean.cellY = cursor.getInt(cursor.getColumnIndex(CELLY));
+                                    iconBean.screen = cursor.getInt(cursor.getColumnIndex(SCREEN));
+                                    iconBean.rank = rank ;
+                                    iconBean.container = anInt ;
+                                    iconBean.id = id ;
+                                    mHotseatIconBean.add(iconBean);
+                                }
+
                                 continue;
                             }else if(anInt > 0){
                                 rank = cursor.getInt(cursor.getColumnIndex(RANK));
@@ -196,6 +224,10 @@ public class MainActivity extends AppCompatActivity {
                         cursor.close();
                         File file = new File(Environment.getExternalStorageDirectory()+"/default_workspace.xml");
                         initSettings(file);
+                        if(mHotseatIconBean.size()>0){
+                            File filehs = new File(Environment.getExternalStorageDirectory()+"/dw_hotseat.xml");
+                            initHotseatSettings(filehs);
+                        }
                         showToast();
                     }
                 }
@@ -249,6 +281,54 @@ public class MainActivity extends AppCompatActivity {
                     }
 
 
+                    serializer.endTag(null, "category");
+                    serializer.endTag(null, "config");
+                    serializer.endDocument();
+                    serializer.flush();
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                } catch (IllegalArgumentException e) {
+                    e.printStackTrace();
+                } catch (IllegalStateException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    if (fos != null) {
+                        try {
+                            fos.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        }).start();
+    }
+    public void initHotseatSettings(final File settings) {
+        new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                FileOutputStream fos = null;
+                try {
+                    fos = new FileOutputStream(settings);
+
+                    XmlSerializer serializer = Xml.newSerializer();
+                    serializer.setOutput(fos, "UTF-8");
+                    serializer.startDocument("UTF-8", true);
+                    serializer.startTag(null, "config");
+                    serializer.startTag(null, "category");
+                    serializer.text(enter);
+                    for(IconBean bean: mHotseatIconBean ){
+                        serializer.startTag(null,FAVORITE);//;
+                        serializer.attribute(null,PACKAGENAME,bean.packageName);//serializer.text(enter);
+                        serializer.attribute(null,CLASSNAME,bean.className);//serializer.text(enter);
+                        serializer.attribute(null,XMLSCREEN, String.valueOf(bean.screen));//serializer.text(enter);
+                        serializer.attribute(null,X, String.valueOf(bean.cellX));//serializer.text(enter);
+                        serializer.attribute(null,Y, String.valueOf(bean.cellY));//serializer.text(enter);
+                        serializer.endTag(null,FAVORITE);serializer.text(enter);//serializer.text(enter);
+                    }
                     serializer.endTag(null, "category");
                     serializer.endTag(null, "config");
                     serializer.endDocument();
